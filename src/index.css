@@ -1,0 +1,17 @@
+
+@import "tailwindcss";
+
+/* Base page background */
+body {
+  background-color: #F5FBF1;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+.reveal-show {
+  opacity: 1;
+  transform: translateY(0);
+}
