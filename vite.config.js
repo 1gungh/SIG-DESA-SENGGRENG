@@ -11,4 +11,6 @@ export default defineConfig({
   server: {
     allowedHosts: true,
   },
+  // Tambahkan baris di bawah ini agar build mengarah ke nama repository GitHub Anda
+  base: '/SIG-DESA-SENGGRENG/', 
 })
