@@ -178,7 +178,7 @@ const copyLink = async () => {
 
             {/* WhatsApp */}
             <a
-              href="https://wa.me/6285880530435"
+              href="https://wa.me/6288228529370"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 hover:text-green-400 transition-all duration-300"

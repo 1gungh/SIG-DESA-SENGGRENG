@@ -369,19 +369,6 @@ function Peta() {
       setLoadingKategori(true);
       setErrorKategori(null);
       try {
-        // getKategoriPotensi() diasumsikan mengembalikan array
-        // [{ id, nama, slug }, ...] dari tabel kategori_potensi di Supabase.
-        // Kalau fungsi ini belum ada di lokasiService.js, tambahkan versi
-        // sederhana seperti:
-        //
-        //   export async function getKategoriPotensi() {
-        //     const { data, error } = await supabase
-        //       .from("kategori_potensi")
-        //       .select("id, nama, slug")
-        //       .order("nama");
-        //     if (error) throw error;
-        //     return data;
-        //   }
         const data = await getKategoriPotensi();
 
         const digabung = data.map((k) => {
@@ -395,9 +382,6 @@ function Peta() {
         });
 
         setKategoriList(digabung);
-        // activeKategori sengaja dibiarkan kosong ([]) di awal — peta memang
-        // dimaksudkan kosong sampai user memilih kategori. Pencarian tetap
-        // berjalan lepas dari status kategori ini (lihat filteredPOI).
       } catch (err) {
         console.error("Gagal memuat kategori:", err);
         setErrorKategori("Gagal memuat kategori.");
@@ -460,8 +444,6 @@ function Peta() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
-  // Map cepat key -> {label, icon, color}, dipakai di banyak tempat
-  // (marker, panel detail, kartu daftar lokasi) supaya tidak find() berulang.
   const kategoriMap = useMemo(() => {
     const m = new Map();
     kategoriList.forEach((k) => m.set(k.key, k));
@@ -481,10 +463,6 @@ function Peta() {
   const filteredPOI = useMemo(() => {
     const acuan = userLocation || { lat: center[0], lng: center[1] };
 
-    // Peta memang sengaja kosong di awal (belum ada kategori dipilih, belum
-    // ada pencarian). Tapi begitu user mengetik di kolom pencarian, hasilnya
-    // harus tetap muncul lintas kategori — tidak boleh ikut kosong hanya
-    // karena belum ada kategori yang aktif.
     const sedangMencari = searchTerm.trim().length > 0;
     if (activeKategori.length === 0 && !sedangMencari) {
       return [];
@@ -507,9 +485,15 @@ function Peta() {
     setMobileFilterOpen(false);
   }, []);
 
+  // Sekarang mengarah ke /potensi/:kategoriSlug/:lokasiSlug.
+  // Fallback ke /kategori kalau data lama belum punya slug (belum migrasi).
   const handleLihatDetail = useCallback(
     (poi) => {
-      navigate(`/potensi/${poi.id}`);
+      if (poi.kategoriSlug && poi.slug) {
+        navigate(`/potensi/${poi.kategoriSlug}/${poi.slug}`);
+      } else {
+        navigate("/kategori");
+      }
     },
     [navigate]
   );
@@ -565,7 +549,6 @@ function Peta() {
 
           {batasDesa && batasDesa.length > 0 && (
             <>
-              {/* Layer 1: Masking area luar desa (Inverted Polygon) */}
               <Polygon
                 positions={[
                   [
@@ -583,7 +566,6 @@ function Peta() {
                 }}
               />
 
-              {/* Layer 2: Garis batas desa (Outline) */}
               <Polygon
                 positions={batasDesa}
                 pathOptions={{

@@ -251,8 +251,7 @@ function Beranda() {
                     {item.judul}
                   </h3>
                   <NavLink
-                    // UBAH: dari item.id menjadi item.slug
-                    to={`/berita/${item.slug}`} 
+                    to={`/berita/${item.slug}`}
                     className="inline-flex items-center gap-1 text-sm text-green-700 hover:text-green-800 font-medium mt-3 transition-colors"
                   >
                     Baca Selengkapnya <FaArrowRight className="text-xs" />
@@ -288,6 +287,10 @@ function Beranda() {
                 p.lat != null && p.lng != null
                   ? `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`
                   : null;
+              // Link detail sekarang butuh kategoriSlug + slug (bukan id lagi).
+              // Kalau salah satunya kosong (data lama belum ikut migrasi), fallback ke /kategori.
+              const detailUrl =
+                p.kategoriSlug && p.slug ? `/potensi/${p.kategoriSlug}/${p.slug}` : "/kategori";
 
               return (
                 <div
@@ -324,7 +327,7 @@ function Beranda() {
                         </span>
                       )}
                       <NavLink
-                        to={`/potensi/${p.id}`}
+                        to={detailUrl}
                         className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-3 py-2 rounded-lg transition-colors"
                       >
                         Detail

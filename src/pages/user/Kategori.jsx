@@ -184,7 +184,13 @@ function Kategori() {
 }
 
 function KartuPotensi({ item }) {
+  
   const style = KATEGORI_STYLE[item.kategori] || { bg: "bg-gray-500", text: "text-white" };
+  
+  // Link detail sekarang butuh kategoriSlug + slug (bukan id lagi).
+  // Fallback ke "#" kalau data lama belum punya slug (belum migrasi / belum sinkron).
+  const detailUrl =
+    item.kategoriSlug && item.slug ? `/potensi/${item.kategoriSlug}/${item.slug}` : "#";
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow flex flex-col">
@@ -215,7 +221,7 @@ function KartuPotensi({ item }) {
             {item.lokasi}
           </span>
           <Link
-            to={`/potensi/${item.id}`}
+            to={detailUrl}
             className="text-[11px] font-medium text-green-700 hover:underline whitespace-nowrap"
           >
             Lihat Detail →

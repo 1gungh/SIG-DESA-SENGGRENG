@@ -6,6 +6,7 @@ import {
   FaUser,
   FaWhatsapp,
   FaChevronLeft,
+  FaTimes, // Tambahan untuk ikon close
 } from "react-icons/fa";
 import { getLokasiDetailPublik, getLokasiTerdekat } from "../../services/lokasiService";
 
@@ -38,12 +39,15 @@ function formatJarak(meter) {
 }
 
 function DetailPotensi() {
-  const { id } = useParams();
+  // DIUBAH: sebelumnya cuma { id }, sekarang butuh kategoriSlug + lokasiSlug
+  // karena URL sekarang berbentuk /potensi/:kategoriSlug/:lokasiSlug
+  const { kategoriSlug, lokasiSlug } = useParams();
   const [data, setData] = useState(null);
   const [terdekat, setTerdekat] = useState([]);
   const [fotoAktif, setFotoAktif] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lightboxBuka, setLightboxBuka] = useState(false); // Tambahan state untuk lightbox
 
   useEffect(() => {
     let batal = false;
@@ -53,7 +57,8 @@ function DetailPotensi() {
       setError(null);
 
       try {
-        const hasil = await getLokasiDetailPublik(id);
+        // DIUBAH: getLokasiDetailPublik(id) -> getLokasiDetailPublik(kategoriSlug, lokasiSlug)
+        const hasil = await getLokasiDetailPublik(kategoriSlug, lokasiSlug);
 
         if (!hasil) {
           if (!batal) {
@@ -67,7 +72,9 @@ function DetailPotensi() {
         setData(hasil);
         setFotoAktif(0);
 
-        const daftarLain = await getLokasiTerdekat(id);
+        // DIUBAH: getLokasiTerdekat masih pakai id lokasi (bukan slug),
+        // jadi ambil dari hasil.id setelah data lokasi berhasil dimuat
+        const daftarLain = await getLokasiTerdekat(hasil.id);
 
         const urutkanBerdasarkanJarak = (acuan) => {
           const daftar = daftarLain.map((d) => ({
@@ -116,7 +123,8 @@ function DetailPotensi() {
     return () => {
       batal = true;
     };
-  }, [id]);
+    // DIUBAH: dependency array sekarang kategoriSlug + lokasiSlug
+  }, [kategoriSlug, lokasiSlug]);
 
   if (loading) {
     return (
@@ -154,12 +162,13 @@ function DetailPotensi() {
         </Link>
 
         {/* Foto utama */}
-        <div className="rounded-2xl overflow-hidden bg-gray-100 h-72 sm:h-96">
+        <div className="rounded-2xl overflow-hidden bg-gray-100 h-72 sm:h-96 relative group">
           {daftarFoto.length > 0 ? (
             <img
               src={daftarFoto[fotoAktif]}
               alt={data.nama}
-              className="w-full h-full object-cover"
+              onClick={() => setLightboxBuka(true)} // Tambahan event onClick
+              className="w-full h-full object-cover cursor-pointer transition-transform duration-300 group-hover:scale-105" // Tambahan cursor-pointer
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
@@ -286,7 +295,12 @@ function DetailPotensi() {
               {terdekat.map((t) => (
                 <Link
                   key={t.id}
-                  to={`/potensi/${t.id}`}
+                  // DIUBAH: dari /potensi/${t.id} ke /potensi/${t.kategoriSlug}/${t.slug}
+                  to={
+                    t.kategoriSlug && t.slug
+                      ? `/potensi/${t.kategoriSlug}/${t.slug}`
+                      : "/kategori"
+                  }
                   className="bg-white border border-gray-100 rounded-xl overflow-hidden hover:shadow-sm transition-shadow"
                 >
                   <div className="h-28 bg-gray-100">
@@ -310,6 +324,28 @@ function DetailPotensi() {
           </div>
         )}
       </div>
+
+      {/* Lightbox / Modal untuk melihat gambar full */}
+      {lightboxBuka && daftarFoto.length > 0 && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setLightboxBuka(false)}
+        >
+          <button 
+            className="absolute top-6 right-6 text-white/70 hover:text-white text-3xl transition-colors"
+            onClick={() => setLightboxBuka(false)}
+          >
+            <FaTimes />
+          </button>
+          
+          <img
+            src={daftarFoto[fotoAktif]}
+            alt="Gambar Full"
+            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()} // Supaya saat klik gambar tidak langsung close modal
+          />
+        </div>
+      )}
     </div>
   );
 }
