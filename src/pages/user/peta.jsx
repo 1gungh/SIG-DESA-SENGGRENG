@@ -5,21 +5,28 @@ import L from "leaflet";
 import axios from "axios";
 import "leaflet/dist/leaflet.css";
 import { FaMapMarkedAlt, FaWhatsapp, FaTimes, FaUser, FaSlidersH } from "react-icons/fa";
-import { getLokasiPeta } from "../../services/lokasiService";
+import { getLokasiPeta, getKategoriPotensi } from "../../services/lokasiService";
 
 const center = [-8.184, 112.47];
 
-const KATEGORI = [
-  { key: "umkm", label: "UMKM", icon: "🍜", color: "#f97316" },
-  { key: "tempat-ibadah", label: "Tempat Ibadah", icon: "🕌", color: "#0ea5e9" },
-  { key: "sarana-pendidikan", label: "Sarana Pendidikan", icon: "🏫", color: "#2563eb" },
-  { key: "fasilitas-kesehatan", label: "Fasilitas Kesehatan", icon: "🏥", color: "#ef4444" },
-  { key: "bengkel", label: "Bengkel", icon: "🔧", color: "#78716c" },
-  { key: "laundry", label: "Laundry", icon: "🧺", color: "#06b6d4" },
-  { key: "sarana-olahraga", label: "Sarana Olahraga", icon: "⚽", color: "#16a34a" },
-  { key: "sanggar-kesenian", label: "Sanggar Kesenian", icon: "🎭", color: "#a855f7" },
-  { key: "minimarket", label: "Minimarket", icon: "🛒", color: "#eab308" },
-];
+// Database (tabel kategori_potensi) hanya diasumsikan menyimpan id, nama,
+// dan slug — belum tentu ada kolom emoji/warna. Jadi emoji & warna tetap
+// disimpan lokal sebagai fallback, dikunci berdasarkan slug, lalu digabung
+// dengan data nama/id dari database saat render.
+const ICON_COLOR_FALLBACK = {
+  umkm: { icon: "🍜", color: "#f97316" },
+  "tempat-ibadah": { icon: "🕌", color: "#0ea5e9" },
+  "tempat-wisata": { icon: "🗺️", color: "#14b8a6" },
+  "sarana-pendidikan": { icon: "🏫", color: "#2563eb" },
+  "fasilitas-kesehatan": { icon: "🏥", color: "#ef4444" },
+  bengkel: { icon: "🔧", color: "#78716c" },
+  laundry: { icon: "🧺", color: "#06b6d4" },
+  "sarana-olahraga": { icon: "⚽", color: "#16a34a" },
+  "sanggar-kesenian": { icon: "🎭", color: "#a855f7" },
+  minimarket: { icon: "🛒", color: "#eab308" },
+  "agen-brilink": { icon: "💳", color: "#1d4ed8" },
+};
+const ICON_COLOR_DEFAULT = { icon: "📍", color: "#9ca3af" };
 
 const BASEMAP = {
   jalan: {
@@ -65,10 +72,10 @@ function formatRupiah(angka) {
   return "Rp " + angka;
 }
 
-function buatIcon(poi) {
-  const kat = KATEGORI.find((k) => k.key === poi.kategori);
-  const color = kat ? kat.color : "#ef4444";
-  const emoji = kat ? kat.icon : "📍";
+function buatIcon(poi, kategoriMap) {
+  const kat = kategoriMap.get(poi.kategori);
+  const color = kat ? kat.color : ICON_COLOR_DEFAULT.color;
+  const emoji = kat ? kat.icon : ICON_COLOR_DEFAULT.icon;
 
   return L.divIcon({
     className: "",
@@ -106,10 +113,10 @@ function FitBoundsToPolygon({ positions }) {
   return null;
 }
 
-function PanelDetailPOI({ poi, onClose, onLihatDetail }) {
+function PanelDetailPOI({ poi, onClose, onLihatDetail, kategoriMap }) {
   if (!poi) return null;
 
-  const kat = KATEGORI.find((k) => k.key === poi.kategori);
+  const kat = kategoriMap.get(poi.kategori);
   const punyaHarga = poi.hargaMin != null || poi.hargaMax != null;
   const mapsUrl = "https://www.google.com/maps/dir/?api=1&destination=" + poi.lat + "," + poi.lng;
   const waUrl = poi.whatsapp
@@ -127,9 +134,9 @@ function PanelDetailPOI({ poi, onClose, onLihatDetail }) {
         ) : (
           <div
             className="w-full h-full flex items-center justify-center text-5xl"
-            style={{ backgroundColor: kat ? kat.color : "#9ca3af" }}
+            style={{ backgroundColor: kat ? kat.color : ICON_COLOR_DEFAULT.color }}
           >
-            {kat ? kat.icon : "📍"}
+            {kat ? kat.icon : ICON_COLOR_DEFAULT.icon}
           </div>
         )}
         <button
@@ -212,6 +219,9 @@ function FilterContent({
   gpsError,
   searchTerm,
   setSearchTerm,
+  kategoriList,
+  loadingKategori,
+  errorKategori,
   activeKategori,
   pilihKategori,
   loadingPoi,
@@ -219,6 +229,7 @@ function FilterContent({
   filteredPOI,
   selectedPOI,
   handlePilihPOI,
+  kategoriMap,
 }) {
   return (
     <>
@@ -243,25 +254,33 @@ function FilterContent({
       </div>
 
       <h3 className="text-sm font-semibold text-gray-700 mb-2">Kategori Potensi</h3>
-      <div className="flex flex-wrap gap-2 mb-6">
-        {KATEGORI.map((k) => {
-          const active = activeKategori.includes(k.key);
-          return (
-            <button
-              key={k.key}
-              onClick={() => pilihKategori(k.key)}
-              className={
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition " +
-                (active
-                  ? "bg-green-700 text-white"
-                  : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50")
-              }
-            >
-              <span>{k.icon}</span> {k.label}
-            </button>
-          );
-        })}
-      </div>
+
+      {loadingKategori && <p className="text-xs text-gray-400 mb-6">Memuat kategori...</p>}
+      {!loadingKategori && errorKategori && (
+        <p className="text-xs text-red-500 mb-6">{errorKategori}</p>
+      )}
+
+      {!loadingKategori && !errorKategori && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          {kategoriList.map((k) => {
+            const active = activeKategori.includes(k.key);
+            return (
+              <button
+                key={k.key}
+                onClick={() => pilihKategori(k.key)}
+                className={
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition " +
+                  (active
+                    ? "bg-green-700 text-white"
+                    : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50")
+                }
+              >
+                <span>{k.icon}</span> {k.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <h3 className="text-sm font-semibold text-gray-700 mb-3">Daftar Lokasi Terdekat</h3>
 
@@ -288,13 +307,13 @@ function FilterContent({
                 {poi.gambar ? (
                   <img src={poi.gambar} alt={poi.nama} className="w-full h-full object-cover" />
                 ) : (
-                  KATEGORI.find((k) => k.key === poi.kategori)?.icon
+                  kategoriMap.get(poi.kategori)?.icon || ICON_COLOR_DEFAULT.icon
                 )}
               </div>
               <div className="min-w-0">
                 <p className="font-semibold text-gray-900 text-sm truncate">{poi.nama}</p>
                 <p className="text-xs text-gray-500">
-                  {KATEGORI.find((k) => k.key === poi.kategori)?.label} - {formatJarak(poi.jarakMeter)} dari sini
+                  {kategoriMap.get(poi.kategori)?.label || "-"} - {formatJarak(poi.jarakMeter)} dari sini
                 </p>
                 {poi.jam && <p className="text-xs text-green-700">Buka ({poi.jam})</p>}
               </div>
@@ -312,6 +331,11 @@ function Peta() {
   const [poiList, setPoiList] = useState([]);
   const [loadingPoi, setLoadingPoi] = useState(true);
   const [errorPoi, setErrorPoi] = useState(null);
+
+  // Kategori sekarang berasal dari database, bukan array statis
+  const [kategoriList, setKategoriList] = useState([]);
+  const [loadingKategori, setLoadingKategori] = useState(true);
+  const [errorKategori, setErrorKategori] = useState(null);
 
   const [activeKategori, setActiveKategori] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -338,6 +362,50 @@ function Peta() {
       }
     };
     muatPoi();
+  }, []);
+
+  useEffect(() => {
+    const muatKategori = async () => {
+      setLoadingKategori(true);
+      setErrorKategori(null);
+      try {
+        // getKategoriPotensi() diasumsikan mengembalikan array
+        // [{ id, nama, slug }, ...] dari tabel kategori_potensi di Supabase.
+        // Kalau fungsi ini belum ada di lokasiService.js, tambahkan versi
+        // sederhana seperti:
+        //
+        //   export async function getKategoriPotensi() {
+        //     const { data, error } = await supabase
+        //       .from("kategori_potensi")
+        //       .select("id, nama, slug")
+        //       .order("nama");
+        //     if (error) throw error;
+        //     return data;
+        //   }
+        const data = await getKategoriPotensi();
+
+        const digabung = data.map((k) => {
+          const fallback = ICON_COLOR_FALLBACK[k.slug] || ICON_COLOR_DEFAULT;
+          return {
+            key: k.slug,
+            label: k.nama,
+            icon: fallback.icon,
+            color: fallback.color,
+          };
+        });
+
+        setKategoriList(digabung);
+        // activeKategori sengaja dibiarkan kosong ([]) di awal — peta memang
+        // dimaksudkan kosong sampai user memilih kategori. Pencarian tetap
+        // berjalan lepas dari status kategori ini (lihat filteredPOI).
+      } catch (err) {
+        console.error("Gagal memuat kategori:", err);
+        setErrorKategori("Gagal memuat kategori.");
+      } finally {
+        setLoadingKategori(false);
+      }
+    };
+    muatKategori();
   }, []);
 
   useEffect(() => {
@@ -392,6 +460,14 @@ function Peta() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
+  // Map cepat key -> {label, icon, color}, dipakai di banyak tempat
+  // (marker, panel detail, kartu daftar lokasi) supaya tidak find() berulang.
+  const kategoriMap = useMemo(() => {
+    const m = new Map();
+    kategoriList.forEach((k) => m.set(k.key, k));
+    return m;
+  }, [kategoriList]);
+
   const pilihKategori = (key) => {
     setActiveKategori((prev) => {
       if (prev.includes(key)) {
@@ -405,8 +481,17 @@ function Peta() {
   const filteredPOI = useMemo(() => {
     const acuan = userLocation || { lat: center[0], lng: center[1] };
 
+    // Peta memang sengaja kosong di awal (belum ada kategori dipilih, belum
+    // ada pencarian). Tapi begitu user mengetik di kolom pencarian, hasilnya
+    // harus tetap muncul lintas kategori — tidak boleh ikut kosong hanya
+    // karena belum ada kategori yang aktif.
+    const sedangMencari = searchTerm.trim().length > 0;
+    if (activeKategori.length === 0 && !sedangMencari) {
+      return [];
+    }
+
     return poiList
-      .filter((p) => activeKategori.includes(p.kategori))
+      .filter((p) => activeKategori.length === 0 || activeKategori.includes(p.kategori))
       .filter((p) => p.nama.toLowerCase().includes(searchTerm.toLowerCase()))
       .map((p) => ({
         ...p,
@@ -435,6 +520,9 @@ function Peta() {
     gpsError,
     searchTerm,
     setSearchTerm,
+    kategoriList,
+    loadingKategori,
+    errorKategori,
     activeKategori,
     pilihKategori,
     loadingPoi,
@@ -442,11 +530,12 @@ function Peta() {
     filteredPOI,
     selectedPOI,
     handlePilihPOI,
+    kategoriMap,
   };
 
   return (
     <div className="flex h-[calc(100vh-72px)] relative">
-      {/* SIDEBAR DESKTOP — tidak diubah sama sekali dari versi sebelumnya */}
+      {/* SIDEBAR DESKTOP */}
       <aside className="w-[400px] shrink-0 bg-green-50 border-r border-green-100 overflow-y-auto p-5 hidden md:block">
         <FilterContent {...filterProps} />
       </aside>
@@ -476,7 +565,33 @@ function Peta() {
 
           {batasDesa && batasDesa.length > 0 && (
             <>
-              <Polygon positions={batasDesa} pathOptions={{ color: "#FFFF00", weight: 4, fillOpacity: 0 }} />
+              {/* Layer 1: Masking area luar desa (Inverted Polygon) */}
+              <Polygon
+                positions={[
+                  [
+                    [-90, -360],
+                    [90, -360],
+                    [90, 360],
+                    [-90, 360],
+                  ],
+                  batasDesa
+                ]}
+                pathOptions={{
+                  stroke: false,
+                  fillColor: "#000000",
+                  fillOpacity: 0.4
+                }}
+              />
+
+              {/* Layer 2: Garis batas desa (Outline) */}
+              <Polygon
+                positions={batasDesa}
+                pathOptions={{
+                  fill: false,
+                  color: "#ef4444",
+                  weight: 3
+                }}
+              />
               <FitBoundsToPolygon positions={batasDesa} />
             </>
           )}
@@ -487,7 +602,7 @@ function Peta() {
               <Marker
                 key={poi.id}
                 position={[poi.lat, poi.lng]}
-                icon={buatIcon(poi)}
+                icon={buatIcon(poi, kategoriMap)}
                 eventHandlers={{ click: () => handlePilihPOI(poi) }}
               />
             ))}
@@ -495,7 +610,12 @@ function Peta() {
           {selectedPOI && <PanTo position={[selectedPOI.lat, selectedPOI.lng]} />}
         </MapContainer>
 
-        <PanelDetailPOI poi={selectedPOI} onClose={() => setSelectedPOI(null)} onLihatDetail={handleLihatDetail} />
+        <PanelDetailPOI
+          poi={selectedPOI}
+          onClose={() => setSelectedPOI(null)}
+          onLihatDetail={handleLihatDetail}
+          kategoriMap={kategoriMap}
+        />
 
         {/* TOMBOL FILTER MENGAMBANG — khusus mobile, sidebar desktop tetap tersembunyi di layar kecil */}
         <button
@@ -504,7 +624,7 @@ function Peta() {
         >
           <FaSlidersH className="text-xs" />
           Filter & Lokasi
-          {activeKategori.length > 0 && (
+          {activeKategori.length > 0 && activeKategori.length < kategoriList.length && (
             <span className="bg-white text-green-700 text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
               {activeKategori.length}
             </span>

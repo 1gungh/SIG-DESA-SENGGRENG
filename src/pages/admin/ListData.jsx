@@ -2,24 +2,44 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaUtensils,
-  FaMountain,
-  FaSeedling,
-  FaHorse,
-  FaLandmark,
+  FaMosque,
+  FaGraduationCap,
+  FaClinicMedical,
+  FaTools,
+  FaTshirt,
+  FaFutbol,
+  FaPalette,
+  FaShoppingBasket,
   FaMapMarkerAlt,
   FaPen,
   FaTrash,
 } from "react-icons/fa";
 import { getAllLokasi, deleteLokasi } from "../../services/lokasiService";
 
-const KATEGORI_LIST = ["Semua", "UMKM", "Wisata Alam", "Pertanian", "Peternakan", "Fasilitas"];
+const KATEGORI_LIST = [
+  "Semua",
+  "UMKM",
+  "Tempat Ibadah",
+  "Tempat Wisata",
+  "Sarana Pendidikan",
+  "Fasilitas Kesehatan",
+  "Bengkel",
+  "Laundry",
+  "Sarana Olahraga",
+  "Sanggar Kesenian",
+  "Minimarket",
+];
 
 const KATEGORI_ICON = {
   UMKM: FaUtensils,
-  "Wisata Alam": FaMountain,
-  Pertanian: FaSeedling,
-  Peternakan: FaHorse,
-  Fasilitas: FaLandmark,
+  "Tempat Ibadah": FaMosque,
+  "Sarana Pendidikan": FaGraduationCap,
+  "Fasilitas Kesehatan": FaClinicMedical,
+  Bengkel: FaTools,
+  Laundry: FaTshirt,
+  "Sarana Olahraga": FaFutbol,
+  "Sanggar Kesenian": FaPalette,
+  Minimarket: FaShoppingBasket,
 };
 
 function formatWaktuRelatif(timestamp) {
@@ -40,7 +60,7 @@ function ListData() {
   const [errorMsg, setErrorMsg] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("Semua");
-  
+
   // State baru untuk pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -94,7 +114,7 @@ function ListData() {
     try {
       await deleteLokasi(id);
       setData((prev) => prev.filter((d) => d.id !== id));
-      
+
       // Jika data terakhir di halaman dihapus, mundur ke halaman sebelumnya
       if (paginatedData.length === 1 && currentPage > 1) {
         setCurrentPage((prev) => prev - 1);
@@ -170,7 +190,7 @@ function ListData() {
                   </td>
                 </tr>
               )}
-              
+
               {/* Gunakan paginatedData di sini, bukan filteredData */}
               {!loading && !errorMsg && paginatedData.map((item) => {
                 const IkonKategori = KATEGORI_ICON[item.kategori_nama] || FaMapMarkerAlt;
@@ -236,36 +256,36 @@ function ListData() {
               })}
             </tbody>
           </table>
-          
+
           {/* Bagian Bawah: Informasi Data & Tombol Pagination */}
           <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50">
             <div className="text-xs text-gray-500 mb-3 sm:mb-0">
               Menampilkan {filteredData.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredData.length)} dari {filteredData.length} data
             </div>
-            
+
             <div className="flex gap-2">
               <button
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
                 className={`px-3 py-1 text-xs font-medium rounded-md border ${
-                  currentPage === 1 
-                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed" 
+                  currentPage === 1
+                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
                     : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                 }`}
               >
                 Sebelumnya
               </button>
-              
+
               <span className="px-3 py-1 text-xs font-medium text-gray-700 flex items-center">
                 Hal {currentPage} / {totalPages || 1}
               </span>
-              
+
               <button
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages || totalPages === 0}
                 className={`px-3 py-1 text-xs font-medium rounded-md border ${
                   currentPage === totalPages || totalPages === 0
-                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed" 
+                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
                     : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                 }`}
               >

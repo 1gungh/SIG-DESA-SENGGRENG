@@ -146,6 +146,9 @@ function buatSlug(judul) {
     .replace(/\s+/g, "-");
 }
 
+// Batas ukuran maksimal per foto (2MB), sesuai keterangan di UI.
+const MAKS_UKURAN_FOTO = 2 * 1024 * 1024;
+
 function InputBerita() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -164,6 +167,9 @@ function InputBerita() {
   const [fotoLama, setFotoLama] = useState([]);
   const [fotoHapusLoading, setFotoHapusLoading] = useState(null);
 
+  // Foto yang sedang ditampilkan besar di modal preview (klik thumbnail)
+  const [previewImage, setPreviewImage] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEdit);
   const [ukuranFont, setUkuranFont] = useState("3");
@@ -176,9 +182,6 @@ function InputBerita() {
       try {
         const data = await getKategoriBerita();
         setKategoriList(data);
-        // if (data.length > 0 && !isEdit) {
-        //   setKategoriId(data[0].id);
-        // }
       } catch (err) {
         console.error("Gagal memuat kategori berita:", err);
       }
@@ -232,6 +235,16 @@ function InputBerita() {
     return () => document.removeEventListener("selectionchange", simpanSeleksi);
   }, []);
 
+  // Tutup modal preview dengan tombol Escape (kemudahan UX tambahan)
+  useEffect(() => {
+    if (!previewImage) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setPreviewImage(null);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [previewImage]);
+
   const pulihkanSeleksi = () => {
     editorRef.current?.focus();
     const range = savedRangeRef.current;
@@ -282,8 +295,15 @@ function InputBerita() {
       return;
     }
 
-    setGambarFiles((prev) => [...prev, ...hanyaGambar]);
-    const urlBaru = hanyaGambar.map((file) => URL.createObjectURL(file));
+    const sesuaiUkuran = hanyaGambar.filter((file) => file.size <= MAKS_UKURAN_FOTO);
+    const terlaluBesar = hanyaGambar.length - sesuaiUkuran.length;
+    if (terlaluBesar > 0) {
+      alert(`${terlaluBesar} foto dilewati karena melebihi batas 2MB.`);
+    }
+    if (sesuaiUkuran.length === 0) return;
+
+    setGambarFiles((prev) => [...prev, ...sesuaiUkuran]);
+    const urlBaru = sesuaiUkuran.map((file) => URL.createObjectURL(file));
     setPreviewUrls((prev) => [...prev, ...urlBaru]);
   };
 
@@ -514,7 +534,13 @@ function InputBerita() {
                       key={f.id}
                       className="relative w-[calc(33.33%-6px)] aspect-square rounded-lg overflow-hidden group border border-gray-100 shrink-0"
                     >
-                      <img src={f.url} alt="Foto berita" className="w-full h-full object-cover" />
+                      <img
+                        src={f.url}
+                        alt="Foto berita"
+                        onClick={() => setPreviewImage(f.url)}
+                        className="w-full h-full object-cover cursor-zoom-in"
+                        title="Klik untuk melihat pratinjau"
+                      />
 
                       {f.is_utama && (
                         <span className="absolute -top-1 -left-1 bg-yellow-400 text-white rounded-full w-5 h-5 flex items-center justify-center shadow">
@@ -524,7 +550,10 @@ function InputBerita() {
 
                       <button
                         type="button"
-                        onClick={() => hapusFotoLama(f)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hapusFotoLama(f);
+                        }}
                         disabled={fotoHapusLoading === f.id}
                         className="absolute top-1 right-1 bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] hover:bg-red-700 shadow-sm transition-colors disabled:opacity-50"
                       >
@@ -534,7 +563,10 @@ function InputBerita() {
                       {!f.is_utama && (
                         <button
                           type="button"
-                          onClick={() => jadikanUtama(f)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            jadikanUtama(f);
+                          }}
                           title="Jadikan foto utama"
                           className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
@@ -546,13 +578,22 @@ function InputBerita() {
 
                   {previewUrls.map((url, index) => (
                     <div key={url} className="relative w-[calc(33.33%-6px)] aspect-square rounded-lg overflow-hidden group border border-gray-100 shrink-0">
-                      <img src={url} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                      <img
+                        src={url}
+                        alt={`Preview ${index + 1}`}
+                        onClick={() => setPreviewImage(url)}
+                        className="w-full h-full object-cover cursor-zoom-in"
+                        title="Klik untuk melihat pratinjau"
+                      />
                       <span className="absolute bottom-0 left-0 right-0 text-[8px] text-center bg-black/50 text-white py-0.5">
                         Baru
                       </span>
                       <button
                         type="button"
-                        onClick={() => hapusGambarBaru(index)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hapusGambarBaru(index);
+                        }}
                         className="absolute top-1 right-1 bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] hover:bg-red-700 shadow-sm transition-colors"
                       >
                         <FaTimes />
@@ -594,7 +635,7 @@ function InputBerita() {
 
               {isEdit && (
                 <p className="text-[11px] text-gray-400 mt-2">
-                  Arahkan kursor ke foto untuk menjadikannya foto utama.
+                  Arahkan kursor ke foto untuk menjadikannya foto utama. Klik foto untuk melihat pratinjau ukuran penuh.
                 </p>
               )}
             </div>
@@ -618,6 +659,29 @@ function InputBerita() {
         </div>
 
       </div>
+
+      {/* MODAL PRATINJAU FOTO — muncul saat salah satu thumbnail galeri diklik */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-5 right-5 text-white w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+            title="Tutup"
+          >
+            <FaTimes />
+          </button>
+          <img
+            src={previewImage}
+            alt="Pratinjau foto"
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[85vh] max-w-full rounded-lg shadow-2xl object-contain"
+          />
+        </div>
+      )}
     </div>
   );
 }

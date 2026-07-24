@@ -251,7 +251,8 @@ function Beranda() {
                     {item.judul}
                   </h3>
                   <NavLink
-                    to={`/berita/${item.id}`}
+                    // UBAH: dari item.id menjadi item.slug
+                    to={`/berita/${item.slug}`} 
                     className="inline-flex items-center gap-1 text-sm text-green-700 hover:text-green-800 font-medium mt-3 transition-colors"
                   >
                     Baca Selengkapnya <FaArrowRight className="text-xs" />

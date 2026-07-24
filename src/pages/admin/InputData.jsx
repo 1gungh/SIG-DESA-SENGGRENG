@@ -36,6 +36,7 @@ const KATEGORI_LIST = [
   "Semua",
   "UMKM",
   "Tempat Ibadah",
+  "Tempat Wisata",
   "Sarana Pendidikan",
   "Fasilitas Kesehatan",
   "Bengkel",

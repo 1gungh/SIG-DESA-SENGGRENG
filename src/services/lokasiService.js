@@ -291,11 +291,6 @@ export const getLokasiPeta = async () => {
   return (data || [])
     .filter((row) => row.latitude != null && row.longitude != null)
     .map((row) => {
-      // Ambil slug langsung dari tabel kategori_potensi (sudah kebab-case,
-      // contoh: "tempat-ibadah", "sarana-pendidikan"). Ini menggantikan
-      // mapping manual lama (KATEGORI_DB_TO_KEY) yang sudah tidak sesuai
-      // dengan daftar kategori terbaru dan menyebabkan marker kategori
-      // selain UMKM tidak muncul di peta.
       const kategoriSlug = row.kategori_potensi?.slug || '';
       const fotoUtama = row.lokasi_foto?.find((f) => f.is_utama) || row.lokasi_foto?.[0];
       const hargaValid = (row.lokasi_produk || [])
@@ -444,10 +439,21 @@ export const getSemuaLokasiKategori = async () => {
   }));
 };
 
+// INI FUNGSI YANG DIPERBAIKI (Diubah dari getKategoriPotensiList)
+export const getKategoriPotensi = async () => {
+  const { data, error } = await supabase
+    .from('kategori_potensi')
+    .select('id, nama, slug')
+    .order('nama');
+  if (error) throw error;
+  return data;
+};
+
+// FUNGSI INI DITAMBAHKAN AGAR JIKA ADA KOMPONEN LAIN YANG MASIH MEMAKAI NAMANYA, TIDAK IKUT ERROR
 export const getKategoriPotensiList = async () => {
   const { data, error } = await supabase
     .from('kategori_potensi')
-    .select('id, nama')
+    .select('id, nama, slug')
     .order('nama');
   if (error) throw error;
   return data;
@@ -479,15 +485,11 @@ export const getStatistikPotensi = async () => {
 
   return {
     umkm: hitung(['UMKM']),
-    wisata: hitung(['Wisata Alam']),
+    wisata: hitung(['Tempat Wisata']),
     agrobisnis: hitung(['Pertanian', 'Peternakan']),
   };
 };
 
-// Semua lokasi aktif & tampil di peta, untuk section "Potensi Unggulan" di Beranda.
-// TIDAK diacak/dibatasi di sini — pengacakan dan rotasi berkala dilakukan di komponen
-// (Beranda.jsx) lewat setInterval, supaya kartu yang tampil berganti otomatis selagi
-// halaman terbuka, bukan cuma berubah saat reload.
 export const getSemuaPotensiAktif = async () => {
   const { data, error } = await supabase
     .from('lokasi')
@@ -520,10 +522,11 @@ export const getBeritaTerkiniRingkas = async (limitData = 3) => {
     .select(`
       id,
       judul,
+      slug, 
       tanggal_publikasi,
       kategori_berita ( nama ),
       berita_foto ( url, urutan )
-    `)
+    `) 
     .eq('status', 'terbit')
     .order('tanggal_publikasi', { ascending: false })
     .limit(limitData);
@@ -532,6 +535,7 @@ export const getBeritaTerkiniRingkas = async (limitData = 3) => {
 
   return (data || []).map((row) => ({
     id: row.id,
+    slug: row.slug, 
     judul: row.judul,
     kategori: row.kategori_berita?.nama || '',
     tanggal: row.tanggal_publikasi
@@ -547,6 +551,7 @@ export const getBeritaTerkiniRingkas = async (limitData = 3) => {
       .map((f) => f.url),
   }));
 };
+
 // =====================================================================
 // DASHBOARD ADMIN
 // =====================================================================
@@ -567,7 +572,7 @@ export const getStatistikDashboard = async () => {
 
   return {
     total: rows.length,
-    perKategori, // contoh: { UMKM: 12, "Tempat Ibadah": 5, ... }
+    perKategori, 
   };
 };
 

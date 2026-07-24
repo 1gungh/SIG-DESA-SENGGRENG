@@ -184,7 +184,7 @@ const copyLink = async () => {
               className="flex items-center gap-3 hover:text-green-400 transition-all duration-300"
             >
               <FaWhatsapp className="text-xl shrink-0" />
-              <span>085880530435</span>
+              <span>088228529370</span>
             </a>
 
             {/* Email */}

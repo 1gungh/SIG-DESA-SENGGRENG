@@ -1,8 +1,6 @@
 import { supabase } from '../lib/supabaseClient'
 
 // Nama bucket storage untuk foto berita.
-// Catatan: bucket ini beda dengan bucket foto lokasi ('galeri_desa').
-// Pastikan bucket 'berita-photos' sudah dibuat & public di Supabase Storage.
 const BUCKET_BERITA = 'berita-photos'
 
 // =====================================================================
@@ -19,7 +17,7 @@ export async function createBerita(payload) {
 }
 
 // =====================================================================
-// BERITA — READ (list & detail by id)
+// BERITA — READ (list & detail by id/slug)
 // =====================================================================
 export async function getAllBerita() {
   const { data, error } = await supabase
@@ -30,6 +28,7 @@ export async function getAllBerita() {
   return data
 }
 
+// Mengambil berita berdasarkan ID (Biasanya dipakai di halaman Admin untuk Edit)
 export async function getBeritaById(id) {
   const { data, error } = await supabase
     .from('berita')
@@ -39,6 +38,21 @@ export async function getBeritaById(id) {
       berita_foto ( id, url, is_utama, urutan )
     `)
     .eq('id', id)
+    .single()
+  if (error) throw error
+  return data
+}
+
+// FUNGSI INI YANG DICARI OLEH HALAMAN DETAIL BERITA (FRONTEND)
+export async function getBeritaBySlug(slug) {
+  const { data, error } = await supabase
+    .from('berita')
+    .select(`
+      *,
+      kategori_berita ( id, nama ),
+      berita_foto ( id, url, is_utama, urutan )
+    `)
+    .eq('slug', slug)
     .single()
   if (error) throw error
   return data
@@ -111,7 +125,7 @@ export async function deleteFotoBerita(fotoId, url) {
   if (error) throw error
 }
 
-// Jadikan sebuah foto sebagai foto utama (yang lain otomatis bukan utama)
+// Jadikan sebuah foto sebagai foto utama
 export async function setFotoUtamaBerita(beritaId, fotoId) {
   const { error: err1 } = await supabase
     .from('berita_foto')

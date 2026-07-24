@@ -14,7 +14,7 @@ const UserRoutes = (
     <Route path="/kategori" element={<Kategori />} />
     <Route path="/tentang" element={<Tentang />} />
     <Route path="/potensi/:id" element={<DetailPotensi />} />
-    <Route path="/berita/:id" element={<DetailBerita />} />
+    <Route path="/berita/:slug" element={<DetailBerita />} />
   </Route>
 );
 
