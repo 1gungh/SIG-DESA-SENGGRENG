@@ -28,6 +28,36 @@ const ICON_COLOR_FALLBACK = {
 };
 const ICON_COLOR_DEFAULT = { icon: "📍", color: "#9ca3af" };
 
+// DITAMBAHKAN: masjid & gereja biasanya satu kategori sama di database
+// ("Tempat Ibadah" / slug "tempat-ibadah"), jadi tidak bisa dibedakan lewat
+// kategori saja. Di sini dideteksi dari NAMA lokasi supaya ikon di peta beda
+// antara masjid/musholla dan gereja/kapel, tanpa perlu ubah struktur data.
+const KATA_KUNCI_MASJID = ["masjid", "musholla", "mushola", "surau", "langgar"];
+const KATA_KUNCI_GEREJA = ["gereja", "kapel", "gpib", "gki", "hkbp"];
+
+function cocokKataKunci(nama, daftarKata) {
+  const namaLower = (nama || "").toLowerCase();
+  return daftarKata.some((kata) => namaLower.includes(kata));
+}
+
+// Helper terpusat untuk menentukan {icon, color} sebuah lokasi.
+// Dipakai di marker peta, panel detail, dan daftar sidebar supaya konsisten.
+function getIkonLokasi(poi, kategoriMap) {
+  const kat = kategoriMap.get(poi.kategori);
+
+  // Khusus kategori "tempat-ibadah": override ikon berdasarkan nama
+  if (poi.kategori === "tempat-ibadah") {
+    if (cocokKataKunci(poi.nama, KATA_KUNCI_MASJID)) {
+      return { icon: "🕌", color: "#0ea5e9" }; // masjid — biru, ikon masjid
+    }
+    if (cocokKataKunci(poi.nama, KATA_KUNCI_GEREJA)) {
+      return { icon: "⛪", color: "#8b5cf6" }; // gereja — ungu, ikon gereja
+    }
+  }
+
+  return kat ? { icon: kat.icon, color: kat.color } : ICON_COLOR_DEFAULT;
+}
+
 const BASEMAP = {
   jalan: {
     label: "Peta Jalan",
@@ -72,10 +102,10 @@ function formatRupiah(angka) {
   return "Rp " + angka;
 }
 
+// DIUBAH: buatIcon sekarang pakai getIkonLokasi (yang sudah menangani
+// perbedaan masjid/gereja) alih-alih ambil langsung dari kategoriMap.
 function buatIcon(poi, kategoriMap) {
-  const kat = kategoriMap.get(poi.kategori);
-  const color = kat ? kat.color : ICON_COLOR_DEFAULT.color;
-  const emoji = kat ? kat.icon : ICON_COLOR_DEFAULT.icon;
+  const { icon: emoji, color } = getIkonLokasi(poi, kategoriMap);
 
   return L.divIcon({
     className: "",
@@ -116,7 +146,9 @@ function FitBoundsToPolygon({ positions }) {
 function PanelDetailPOI({ poi, onClose, onLihatDetail, kategoriMap }) {
   if (!poi) return null;
 
-  const kat = kategoriMap.get(poi.kategori);
+  // DIUBAH: pakai getIkonLokasi supaya ikon fallback (saat poi.gambar kosong)
+  // juga konsisten membedakan masjid/gereja
+  const { icon: ikonFallback, color: warnaFallback } = getIkonLokasi(poi, kategoriMap);
   const punyaHarga = poi.hargaMin != null || poi.hargaMax != null;
   const mapsUrl = "https://www.google.com/maps/dir/?api=1&destination=" + poi.lat + "," + poi.lng;
   const waUrl = poi.whatsapp
@@ -134,9 +166,9 @@ function PanelDetailPOI({ poi, onClose, onLihatDetail, kategoriMap }) {
         ) : (
           <div
             className="w-full h-full flex items-center justify-center text-5xl"
-            style={{ backgroundColor: kat ? kat.color : ICON_COLOR_DEFAULT.color }}
+            style={{ backgroundColor: warnaFallback }}
           >
-            {kat ? kat.icon : ICON_COLOR_DEFAULT.icon}
+            {ikonFallback}
           </div>
         )}
         <button
@@ -292,33 +324,39 @@ function FilterContent({
           {filteredPOI.length === 0 && (
             <p className="text-sm text-gray-400">Tidak ada lokasi ditemukan atau pilih kategori.</p>
           )}
-          {filteredPOI.slice(0, 5).map((poi) => (
-            <div
-              key={poi.id}
-              onClick={() => handlePilihPOI(poi)}
-              className={
-                "flex gap-3 items-center bg-white rounded-xl p-3 border transition cursor-pointer " +
-                (selectedPOI && selectedPOI.id === poi.id
-                  ? "border-green-600 shadow-sm"
-                  : "border-gray-100 hover:shadow-sm")
-              }
-            >
-              <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-lg shrink-0 overflow-hidden">
-                {poi.gambar ? (
-                  <img src={poi.gambar} alt={poi.nama} className="w-full h-full object-cover" />
-                ) : (
-                  kategoriMap.get(poi.kategori)?.icon || ICON_COLOR_DEFAULT.icon
-                )}
+          {filteredPOI.slice(0, 5).map((poi) => {
+            // DITAMBAHKAN: ikon per-item di daftar sidebar juga ikut membedakan
+            // masjid/gereja, bukan cuma ikon kategori generik
+            const { icon: ikonItem } = getIkonLokasi(poi, kategoriMap);
+
+            return (
+              <div
+                key={poi.id}
+                onClick={() => handlePilihPOI(poi)}
+                className={
+                  "flex gap-3 items-center bg-white rounded-xl p-3 border transition cursor-pointer " +
+                  (selectedPOI && selectedPOI.id === poi.id
+                    ? "border-green-600 shadow-sm"
+                    : "border-gray-100 hover:shadow-sm")
+                }
+              >
+                <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-lg shrink-0 overflow-hidden">
+                  {poi.gambar ? (
+                    <img src={poi.gambar} alt={poi.nama} className="w-full h-full object-cover" />
+                  ) : (
+                    ikonItem
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm truncate">{poi.nama}</p>
+                  <p className="text-xs text-gray-500">
+                    {kategoriMap.get(poi.kategori)?.label || "-"} - {formatJarak(poi.jarakMeter)} dari sini
+                  </p>
+                  {poi.jam && <p className="text-xs text-green-700">Buka ({poi.jam})</p>}
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-gray-900 text-sm truncate">{poi.nama}</p>
-                <p className="text-xs text-gray-500">
-                  {kategoriMap.get(poi.kategori)?.label || "-"} - {formatJarak(poi.jarakMeter)} dari sini
-                </p>
-                {poi.jam && <p className="text-xs text-green-700">Buka ({poi.jam})</p>}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </>

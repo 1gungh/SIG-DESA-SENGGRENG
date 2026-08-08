@@ -33,14 +33,16 @@ function Navbar() {
           scrolled ? "shadow-lg" : "shadow-sm"
         }`}
       >
-        {/* Container Utama & Bagian Desktop: Tetap menggunakan struktur awal kamu */}
+       {/* Container Utama & Bagian Desktop: Tetap menggunakan struktur awal kamu */}
         <div className="w-full flex items-center justify-between pl-10 pr-4 md:pr-30 py-4">
           
           <NavLink to="/" className="flex items-center gap-4">
             <img
               src={logo}
               alt="Logo Desa Senggreng"
-              className="w-10 h-10 md:w-15 md:h-15 transition-transform hover:scale-105"
+              // PERBAIKAN: Gunakan h (tinggi) yang pasti, dan w-auto (lebar otomatis).
+              // object-contain bisa dihapus karena w-auto sudah menjaga rasio asli.
+              className="h-10 w-auto md:h-15 transition-transform hover:scale-105"
               onContextMenu={(e) => e.preventDefault()}
               draggable={false}
             />
@@ -53,7 +55,6 @@ function Navbar() {
               </p>
             </div>
           </NavLink>
-
           {/* Menu - Desktop (Sama sekali tidak disentuh) */}
           <ul className="hidden md:flex items-center gap-10">
             {menus.map((menu) => (
@@ -79,7 +80,7 @@ function Navbar() {
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="md:hidden relative w-10 h-10 flex items-center justify-center text-green-700 focus:outline-none"
-            aria-label="Buka menu"
+            aria-label={isOpen ? "Tutup menu" : "Buka menu"}
           >
             {isOpen ? <FaTimes className="text-2xl" /> : <FaBars className="text-2xl" />}
           </button>

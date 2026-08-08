@@ -60,10 +60,19 @@ function ImageCarousel({ images, alt, intervalMs = 3000 }) {
                 e.preventDefault();
                 setIndex(i);
               }}
-              className={`h-1.5 rounded-full transition-all ${
-                i === index ? "bg-white w-4" : "bg-white/60 w-1.5"
-              }`}
-            />
+              // DITAMBAHKAN: aria-label (accessible name) supaya screen reader tidak
+              // membaca tombol ini sebagai "button" tanpa konteks.
+              aria-label={`Lihat foto ke-${i + 1} dari ${images.length}`}
+              // DITAMBAHKAN: p-2 -m-2 memperbesar area sentuh (touch target) tanpa
+              // mengubah tampilan visual dot-nya (dot tetap kecil di dalam area klik).
+              className="p-2 -m-2"
+            >
+              <span
+                className={`block h-1.5 rounded-full transition-all ${
+                  i === index ? "bg-white w-4" : "bg-white/60 w-1.5"
+                }`}
+              />
+            </button>
           ))}
         </div>
       )}
@@ -161,6 +170,9 @@ function Beranda() {
           src={heroImage}
           alt="Desa Senggreng"
           className="absolute inset-0 w-full h-full object-cover"
+          // DITAMBAHKAN: fetchpriority="high" — ini gambar LCP (paling besar/pertama
+          // terlihat di halaman), jadi diprioritaskan browser untuk diunduh lebih awal.
+          fetchPriority="high"
         />
         <div className="absolute inset-0 bg-black/30" />
 
@@ -245,13 +257,20 @@ function Beranda() {
                     >
                       {item.kategori || "Berita"}
                     </span>
-                    <span className="text-xs text-gray-400">{item.tanggal}</span>
+                    {/* DIUBAH: text-gray-400 -> text-gray-600, kontras sebelumnya
+                        tidak cukup terbaca (gagal audit contrast Lighthouse) */}
+                    <span className="text-xs text-gray-600">{item.tanggal}</span>
                   </div>
                   <h3 className="font-semibold text-gray-800 leading-snug">
                     {item.judul}
                   </h3>
                   <NavLink
                     to={`/berita/${item.slug}`}
+                    // DITAMBAHKAN: aria-label unik per berita, karena teks link
+                    // "Baca Selengkapnya" sama persis di semua kartu — Lighthouse
+                    // menandai ini sebagai "identical links, different destination"
+                    // yang membingungkan pengguna screen reader.
+                    aria-label={`Baca selengkapnya: ${item.judul}`}
                     className="inline-flex items-center gap-1 text-sm text-green-700 hover:text-green-800 font-medium mt-3 transition-colors"
                   >
                     Baca Selengkapnya <FaArrowRight className="text-xs" />
@@ -328,6 +347,8 @@ function Beranda() {
                       )}
                       <NavLink
                         to={detailUrl}
+                        // DITAMBAHKAN: aria-label unik, alasan sama seperti link berita di atas
+                        aria-label={`Lihat detail: ${p.nama}`}
                         className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-3 py-2 rounded-lg transition-colors"
                       >
                         Detail

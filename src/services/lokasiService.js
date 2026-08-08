@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
+import { compressImage } from "../utils/compressImage";
 
 // =====================================================================
 // HELPER SLUG
@@ -188,11 +189,16 @@ export const deleteLokasi = async (id) => {
 // FOTO LOKASI
 // =====================================================================
 export const uploadFotoLokasi = async (lokasiId, file, isUtama, urutan) => {
-  const fileExt = file.name.split(".").pop();
+  // DITAMBAHKAN: kompres & resize gambar sebelum upload, supaya ukuran file
+  // di Supabase Storage jauh lebih kecil, mencegah kuota egress cepat habis
+  // seperti yang terjadi sebelumnya (foto lama sampai 4-5MB per foto).
+  const fileTerkompres = await compressImage(file, { maxWidth: 1280, quality: 0.75 });
+
+  const fileExt = "jpg"; // selalu jpg karena hasil compressImage selalu JPEG
   const fileName = `${lokasiId}-${Date.now()}-${urutan}.${fileExt}`;
   const filePath = `lokasi/${fileName}`;
 
-  const { error: uploadError } = await supabase.storage.from("galeri_desa").upload(filePath, file);
+  const { error: uploadError } = await supabase.storage.from("galeri_desa").upload(filePath, fileTerkompres);
 
   if (uploadError) throw uploadError;
 

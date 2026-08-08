@@ -93,6 +93,7 @@ const copyLink = async () => {
 
   <button
     onClick={() => setShowShare(!showShare)}
+    aria-label="Bagikan halaman ini"
     className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 text-gray-300 hover:bg-green-500 hover:text-white hover:scale-110 transition-all duration-300"
   >
     <FaShareAlt />

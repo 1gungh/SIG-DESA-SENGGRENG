@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient'
+import { compressImage } from '../utils/compressImage'
 
 // Nama bucket storage untuk foto berita.
 const BUCKET_BERITA = 'berita-photos'
@@ -93,8 +94,12 @@ export async function getKategoriBerita() {
 // FOTO BERITA
 // =====================================================================
 export async function uploadFotoBerita(beritaId, file, isUtama = false, urutan = 0) {
-  const filePath = `${beritaId}/${Date.now()}_${file.name}`
-  const { error: uploadError } = await supabase.storage.from(BUCKET_BERITA).upload(filePath, file)
+  // DITAMBAHKAN: kompres & resize sebelum upload, sama seperti uploadFotoLokasi
+  // di lokasiService.js — supaya ukuran file di Storage jauh lebih kecil.
+  const fileTerkompres = await compressImage(file, { maxWidth: 1280, quality: 0.75 })
+
+  const filePath = `${beritaId}/${Date.now()}_${fileTerkompres.name}`
+  const { error: uploadError } = await supabase.storage.from(BUCKET_BERITA).upload(filePath, fileTerkompres)
   if (uploadError) throw uploadError
 
   const { data: urlData } = supabase.storage.from(BUCKET_BERITA).getPublicUrl(filePath)

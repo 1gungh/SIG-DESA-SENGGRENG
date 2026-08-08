@@ -44,6 +44,7 @@ const KATEGORI_LIST = [
   "Sarana Olahraga",
   "Sanggar Kesenian",
   "Minimarket",
+  "Agen BRILink"
 ];
 const center = [-8.160956530474579, 112.51604637427506];
 
